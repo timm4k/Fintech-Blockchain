@@ -4,24 +4,51 @@ using FintechBlockchain;
 Console.OutputEncoding = Encoding.UTF8;
 
 var displayService = new BlockChainDisplayService();
+var hashingService = new HashingService();
+string firstAuthor = hashingService.ComputeHash("author:001");
+string secondAuthor = hashingService.ComputeHash("author:002");
+
+var blockchain = new BlockChain(difficulty: 2);
+blockchain.AddBlock("Document registered", firstAuthor);
+blockchain.AddBlock("Document approved", secondAuthor);
+displayService.DisplayChain(blockchain, includeMiningDetails: false);
+Console.WriteLine($"IsValid: {blockchain.IsValid()}");
+Console.WriteLine();
+
+Block sampleBlock = blockchain.Chain[1];
+string originalAuthor = sampleBlock.Author;
+string originalHash = sampleBlock.Hash;
+Console.WriteLine($"AUTHOR CHECK | Block {sampleBlock.Index}");
+Console.WriteLine($"Original Author: {originalAuthor}");
+Console.WriteLine($"Original Hash:   {originalHash}");
+
+sampleBlock.Author = secondAuthor;
+string changedHash = hashingService.ComputeHash(sampleBlock);
+Console.WriteLine($"Changed Author:  {sampleBlock.Author}");
+Console.WriteLine($"Computed Hash:   {changedHash}");
+Console.WriteLine($"Stored Hash:     {sampleBlock.Hash}");
+Console.WriteLine($"Hash changed: {changedHash != originalHash}");
+Console.WriteLine($"IsValid (Author changed): {blockchain.IsValid()}");
+
+sampleBlock.Author = originalAuthor;
+Console.WriteLine($"Hash restored: {hashingService.ComputeHash(sampleBlock) == originalHash}");
+Console.WriteLine($"IsValid (Author restored): {blockchain.IsValid()}");
+
+/*
+Console.OutputEncoding = Encoding.UTF8;
+
+var displayService = new BlockChainDisplayService();
 
 const int initialDifficulty = 2;
 const int blocksToMine = 8;
 const int attackedBlockIndex = 2;
-/*
-string[] events =
-[
-    "User registration: Alice created an account",
-    "Deposit: Alice added 5 BTC to her balance",
-    "Purchase: Alice bought a laptop for 0.2 BTC",
-    "Transfer: Alice sent 1.5 BTC to Bob",
-    "Withdrawal: Bob withdrew 0.5 BTC"
-];
-*/
+var hashingService = new HashingService();
+string author = hashingService.ComputeHash("author:001");
+
 var blockchain = new BlockChain(initialDifficulty, displayService.DisplayMiningProgress);
 for (int index = 1; index <= blocksToMine; index++)
 {
-    blockchain.AddBlock($"Mining sample block {index}");
+    blockchain.AddBlock($"Mining sample block {index}", author);
 }
 
 displayService.PrintDifficultyHistory(blockchain);
@@ -34,10 +61,20 @@ Console.WriteLine($"{"Stage",-18}{"Invalid block",-16}{"Reason",-25}{"IsValid"}"
 displayService.DisplayValidation(blockchain, "Initial");
 
 Block attackedBlock = blockchain.Chain[attackedBlockIndex];
+string originalAuthor = attackedBlock.Author;
+string originalAuthorHash = hashingService.ComputeHash(attackedBlock);
+string changedAuthor = hashingService.ComputeHash("author:002");
+attackedBlock.Author = changedAuthor;
+string changedAuthorHash = hashingService.ComputeHash(attackedBlock);
+bool validWithChangedAuthor = blockchain.IsValid();
+displayService.DisplayValidation(blockchain, "Author changed");
+attackedBlock.Author = originalAuthor;
+bool validWithRestoredAuthor = blockchain.IsValid();
+displayService.DisplayValidation(blockchain, "Author restored");
+
 attackedBlock.Data = "Forged event: transfer 4 BTC to an attacker";
 displayService.DisplayValidation(blockchain, "Data changed");
 
-var hashingService = new HashingService();
 attackedBlock.Hash = hashingService.ComputeHash(attackedBlock);
 displayService.DisplayValidation(blockchain, "Hash recalculated");
 
@@ -51,6 +88,27 @@ int preservedDifficulties = blockchain.Chain.Zip(originalDifficulties)
     .Count(pair => pair.First.DifficultyAtMining == pair.Second);
 displayService.DisplayRepairResult(repair, blockchain, preservedDifficulties);
 displayService.DisplayDifficultyImpact(blockchain.Chain.Skip(attackedBlockIndex));
+
+Console.WriteLine($"AUTHOR CHECK | Block {attackedBlockIndex}");
+Console.WriteLine($"Original Author: {originalAuthor}");
+Console.WriteLine($"Original Hash:   {originalAuthorHash}");
+Console.WriteLine($"Changed Author:  {changedAuthor}");
+Console.WriteLine($"Changed Hash:    {changedAuthorHash}");
+Console.WriteLine($"Hash changed: {originalAuthorHash != changedAuthorHash}");
+Console.WriteLine($"IsValid (Author changed): {validWithChangedAuthor}");
+Console.WriteLine($"IsValid (Author restored): {validWithRestoredAuthor}");
+*/
+
+/*
+string[] events =
+[
+    "User registration: Alice created an account",
+    "Deposit: Alice added 5 BTC to her balance",
+    "Purchase: Alice bought a laptop for 0.2 BTC",
+    "Transfer: Alice sent 1.5 BTC to Bob",
+    "Withdrawal: Bob withdrew 0.5 BTC"
+];
+*/
 
 /*
 var names = new[]

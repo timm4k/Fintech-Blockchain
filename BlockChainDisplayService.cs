@@ -2,28 +2,38 @@ namespace FintechBlockchain;
 
 public sealed class BlockChainDisplayService
 {
-    public void DisplayChain(BlockChain blockchain)
+    public void DisplayChain(BlockChain blockchain, bool includeMiningDetails = true)
     {
-        Console.WriteLine($"BLOCKCHAIN | Next difficulty: {blockchain.Difficulty} | Blocks: {blockchain.Chain.Count} | Genesis included");
+        string heading = includeMiningDetails
+            ? $"BLOCKCHAIN | Next difficulty: {blockchain.Difficulty} | Blocks: {blockchain.Chain.Count} | Genesis included"
+            : $"BLOCKCHAIN | Blocks: {blockchain.Chain.Count} | Genesis included";
+        Console.WriteLine(heading);
         Console.WriteLine();
 
         foreach (Block block in blockchain.Chain)
         {
-            DisplayBlock(block);
+            DisplayBlock(block, includeMiningDetails);
         }
     }
 
-    public void DisplayBlock(Block block)
+    public void DisplayBlock(Block block, bool includeMiningDetails = true)
     {
         Console.WriteLine($"Index:        {block.Index}");
         Console.WriteLine($"TimeStamp:    {block.TimeStamp:O}");
         Console.WriteLine($"Data:         {block.Data}");
+        Console.WriteLine($"Author:       {block.Author}");
         Console.WriteLine($"PreviousHash: {block.PreviousHash}");
-        Console.WriteLine($"Difficulty:   {block.DifficultyAtMining}");
-        Console.WriteLine($"Nonce:        {block.Nonce}");
+        if (includeMiningDetails)
+        {
+            Console.WriteLine($"Difficulty:   {block.DifficultyAtMining}");
+            Console.WriteLine($"Nonce:        {block.Nonce}");
+        }
         Console.WriteLine($"Hash:         {block.Hash}");
-        Console.WriteLine($"Attempts:     {block.MiningAttempts}");
-        Console.WriteLine($"Mining time:  {block.MiningDuration.TotalMilliseconds:F3} ms");
+        if (includeMiningDetails)
+        {
+            Console.WriteLine($"Attempts:     {block.MiningAttempts}");
+            Console.WriteLine($"Mining time:  {block.MiningDuration.TotalMilliseconds:F3} ms");
+        }
         Console.WriteLine(new string('-', 78));
     }
 
@@ -39,10 +49,13 @@ public sealed class BlockChainDisplayService
     public void PrintDifficultyHistory(BlockChain blockchain)
     {
         Console.WriteLine("DIFFICULTY HISTORY");
-        Console.WriteLine($"{"Index",-8}{"DifficultyAtMining",-22}{"Attempts",-16}{"MiningDuration (ms)"}");
+        Console.WriteLine($"{"Index",-8}{"DifficultyAtMining",-22}{"Attempts",-16}{"MiningDuration (ms)",-22}{"Author (short)"}");
         foreach (Block block in blockchain.Chain)
         {
-            Console.WriteLine($"{block.Index,-8}{block.DifficultyAtMining,-22}{block.MiningAttempts,-16}{block.MiningDuration.TotalMilliseconds:F3}");
+            string author = block.Author.Length > 16
+                ? $"{block.Author[..8]}...{block.Author[^8..]}"
+                : block.Author;
+            Console.WriteLine($"{block.Index,-8}{block.DifficultyAtMining,-22}{block.MiningAttempts,-16}{block.MiningDuration.TotalMilliseconds,-22:F3}{author}");
         }
         Console.WriteLine();
     }

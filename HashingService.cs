@@ -20,7 +20,7 @@ public sealed class HashingService
 
     public string ComputeHash(Block block)
     {
-        string blockData = $"{block.Index}|{block.TimeStamp:O}|{block.Data}|{block.PreviousHash}|{block.DifficultyAtMining}";
+        string blockData = $"{block.Index}|{block.TimeStamp:O}|{block.Data}|{block.PreviousHash}|{block.DifficultyAtMining}|{block.Author}";
         return ComputeHash(blockData, block.Nonce);
     }
 

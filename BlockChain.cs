@@ -42,6 +42,7 @@ public sealed class BlockChain
             Index = 0,
             TimeStamp = DateTime.UtcNow,
             Data = "Genesis Block",
+            Author = hashingService.ComputeHash("author:genesis"),
             PreviousHash = "0",
             DifficultyAtMining = Difficulty
         };
@@ -52,7 +53,13 @@ public sealed class BlockChain
 
     public void AddBlock(string data)
     {
+        AddBlock(data, hashingService.ComputeHash("author:anonymous"));
+    }
+
+    public void AddBlock(string data, string author)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(data);
+        ArgumentException.ThrowIfNullOrWhiteSpace(author);
 
         Block lastBlock = blocks[^1];
         var newBlock = new Block
@@ -60,6 +67,7 @@ public sealed class BlockChain
             Index = lastBlock.Index + 1,
             TimeStamp = DateTime.UtcNow,
             Data = data,
+            Author = author,
             PreviousHash = lastBlock.Hash,
             DifficultyAtMining = Difficulty
         };
