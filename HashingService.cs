@@ -20,8 +20,13 @@ public sealed class HashingService
 
     public string ComputeHash(Block block)
     {
-        string blockData = $"{block.Index}|{block.TimeStamp:O}|{block.Data}|{block.PreviousHash}|{block.DifficultyAtMining}|{block.Author}";
-        return ComputeHash(blockData, block.Nonce);
+        return ComputeHash(GetBlockData(block), block.Nonce);
+    }
+
+    public string GetBlockData(Block block)
+    {
+        ArgumentNullException.ThrowIfNull(block);
+        return $"{block.Index}|{block.TimeStamp:O}|{block.Data}|{block.PreviousHash}|{block.DifficultyAtMining}|{block.Author}";
     }
 
     public string ComputeLetterHash(string data, long nonce, string alphabet)

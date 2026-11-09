@@ -3,6 +3,78 @@ using FintechBlockchain;
 
 Console.OutputEncoding = Encoding.UTF8;
 
+int difficulty = 6;
+int maxWorkers = Math.Max(2, Environment.ProcessorCount);
+int workerCount = Math.Min(maxWorkers, 4);
+if (args.Length > 2
+    || (args.Length > 0 && (!int.TryParse(args[0], out difficulty) || difficulty is < 1 or > 64))
+    || (args.Length > 1 && (!int.TryParse(args[1], out workerCount) || workerCount < 1 || workerCount > maxWorkers)))
+{
+    Console.Error.WriteLine($"Usage: dotnet run -- [difficulty: 1..64] [workers: 1..{maxWorkers}]");
+    Environment.ExitCode = 1;
+    return;
+}
+
+var hashingService = new HashingService();
+var miningService = new MiningService(hashingService);
+using var cancellation = new CancellationTokenSource();
+ConsoleCancelEventHandler cancelHandler = (_, eventArgs) =>
+{
+    eventArgs.Cancel = true;
+    cancellation.Cancel();
+};
+Console.CancelKeyPress += cancelHandler;
+
+try
+{
+    DateTime timestamp = DateTime.UtcNow;
+    string author = hashingService.ComputeHash("author:001");
+    await miningService.MineBlockAsync(CreateBlock(1, timestamp, author), 1, cancellation.Token);
+    await miningService.MineBlockAsync(CreateBlock(1, timestamp, author), workerCount, cancellation.Token);
+
+    Block sequentialBlock = CreateBlock(difficulty, timestamp, author);
+    Block parallelBlock = CreateBlock(difficulty, timestamp, author);
+    Console.WriteLine("ASYNCHRONOUS AND MULTITHREADED MINING");
+    Console.WriteLine($"Difficulty: {difficulty} | Logical processors: {Environment.ProcessorCount} | Parallel workers: {workerCount}");
+    Console.WriteLine($"Same input: {hashingService.GetBlockData(sequentialBlock) == hashingService.GetBlockData(parallelBlock)}");
+    Console.WriteLine(Console.IsInputRedirected
+        ? "Ctrl+C: cancel"
+        : "S: status | Q: cancel | Ctrl+C: cancel");
+    Console.WriteLine();
+
+    MiningResult sequential = await MiningConsole.WaitAsync(
+        miningService.MineBlockAsync(sequentialBlock, 1, cancellation.Token),
+        "Sequential", cancellation);
+    MiningResult parallel = await MiningConsole.WaitAsync(
+        miningService.MineBlockAsync(parallelBlock, workerCount, cancellation.Token),
+        "Parallel", cancellation);
+    MiningConsole.PrintComparison(hashingService, sequentialBlock, sequential, parallelBlock, parallel);
+}
+catch (OperationCanceledException)
+{
+    Console.WriteLine("Mining canceled");
+}
+finally
+{
+    Console.CancelKeyPress -= cancelHandler;
+}
+
+static Block CreateBlock(int difficulty, DateTime timestamp, string author)
+{
+    return new Block
+    {
+        Index = 1,
+        TimeStamp = timestamp,
+        Data = "Asynchronous mining comparison",
+        Author = author,
+        PreviousHash = "0",
+        DifficultyAtMining = difficulty
+    };
+}
+
+/*
+Console.OutputEncoding = Encoding.UTF8;
+
 var displayService = new BlockChainDisplayService();
 var hashingService = new HashingService();
 string firstAuthor = hashingService.ComputeHash("author:001");
@@ -33,6 +105,7 @@ Console.WriteLine($"IsValid (Author changed): {blockchain.IsValid()}");
 sampleBlock.Author = originalAuthor;
 Console.WriteLine($"Hash restored: {hashingService.ComputeHash(sampleBlock) == originalHash}");
 Console.WriteLine($"IsValid (Author restored): {blockchain.IsValid()}");
+*/
 
 /*
 Console.OutputEncoding = Encoding.UTF8;

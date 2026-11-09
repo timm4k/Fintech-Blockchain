@@ -1,3 +1,7 @@
 namespace FintechBlockchain;
 
-public sealed record MiningResult(long Nonce, string Hash, long Attempts, TimeSpan Elapsed);
+public sealed record MiningResult(long Nonce, string Hash, long Attempts, TimeSpan Elapsed)
+{
+    public IReadOnlyList<long> AttemptsPerWorker { get; init; } = [];
+    public int ActiveWorkersAtCompletion { get; init; }
+}
