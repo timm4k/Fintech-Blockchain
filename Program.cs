@@ -3,6 +3,55 @@ using FintechBlockchain;
 
 Console.OutputEncoding = Encoding.UTF8;
 
+const int initialDifficulty = 2;
+const int blocksToMine = 8;
+const int attackedBlockIndex = 2;
+var displayService = new BlockChainDisplayService();
+var hashingService = new HashingService();
+string author = hashingService.ComputeHash("author:001");
+Console.WriteLine("PART 1 | BLOCKCHAIN AND DIFFICULTY");
+var blockchain = new BlockChain(initialDifficulty, displayService.DisplayMiningProgress);
+for (int index = 1; index <= blocksToMine; index++)
+{
+    blockchain.AddBlock($"Mining sample block {index}", author);
+}
+
+int[] originalDifficulties = blockchain.Chain
+    .Select(block => block.DifficultyAtMining)
+    .ToArray();
+int difficultyChanges = blockchain.Chain.Zip(blockchain.Chain.Skip(1))
+    .Count(pair => pair.First.DifficultyAtMining != pair.Second.DifficultyAtMining);
+Console.WriteLine($"BLOCKCHAIN | Blocks: {blockchain.Chain.Count} | Adjustment interval: {blockchain.AdjustmentInterval} | Difficulty changes: {difficultyChanges}");
+displayService.PrintDifficultyHistory(blockchain, includeAuthor: false);
+
+Console.WriteLine("PART 2 | TAMPERING DETECTION");
+Console.WriteLine("VALIDATION");
+Console.WriteLine($"{"Stage",-18}{"Invalid block",-16}{"Reason",-25}{"IsValid"}");
+displayService.DisplayValidation(blockchain, "Initial");
+
+Block attackedBlock = blockchain.Chain[attackedBlockIndex];
+attackedBlock.Data = "Forged event: transfer 4 BTC to an attacker";
+displayService.DisplayValidation(blockchain, "Data changed");
+
+attackedBlock.Hash = hashingService.ComputeHash(attackedBlock);
+displayService.DisplayValidation(blockchain, "Hash recalculated");
+
+var miningService = new MiningService(hashingService);
+miningService.MineBlock(attackedBlock, displayService.DisplayMiningProgress);
+displayService.DisplayValidation(blockchain, "Block remined");
+Console.WriteLine();
+
+Console.WriteLine("PART 3 | CHAIN REPAIR");
+RepairResult repair = blockchain.RepairChain(attackedBlockIndex);
+int preservedDifficulties = blockchain.Chain.Zip(originalDifficulties)
+    .Count(pair => pair.First.DifficultyAtMining == pair.Second);
+displayService.DisplayRepairResult(repair, blockchain, preservedDifficulties);
+displayService.PrintDifficultyHistory(blockchain, includeAuthor: false, startIndex: attackedBlockIndex);
+displayService.DisplayDifficultyImpact(blockchain.Chain.Skip(attackedBlockIndex));
+
+/*
+Console.OutputEncoding = Encoding.UTF8;
+
 int difficulty = 6;
 int maxWorkers = Math.Max(2, Environment.ProcessorCount);
 int workerCount = Math.Min(maxWorkers, 4);
@@ -71,6 +120,7 @@ static Block CreateBlock(int difficulty, DateTime timestamp, string author)
         DifficultyAtMining = difficulty
     };
 }
+*/
 
 /*
 Console.OutputEncoding = Encoding.UTF8;

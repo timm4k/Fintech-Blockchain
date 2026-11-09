@@ -46,15 +46,20 @@ public sealed class BlockChainDisplayService
         Console.WriteLine();
     }
 
-    public void PrintDifficultyHistory(BlockChain blockchain)
+    public void PrintDifficultyHistory(BlockChain blockchain, bool includeAuthor = true, int startIndex = 0)
     {
-        Console.WriteLine("DIFFICULTY HISTORY");
-        Console.WriteLine($"{"Index",-8}{"DifficultyAtMining",-22}{"Attempts",-16}{"MiningDuration (ms)",-22}{"Author (short)"}");
-        foreach (Block block in blockchain.Chain)
+        ArgumentOutOfRangeException.ThrowIfNegative(startIndex);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(startIndex, blockchain.Chain.Count);
+        Console.WriteLine(startIndex == 0 ? "DIFFICULTY HISTORY" : "REMINED BLOCKS");
+        string authorHeader = includeAuthor ? "Author (short)" : string.Empty;
+        Console.WriteLine($"{"Index",-8}{"DifficultyAtMining",-22}{"Attempts",-16}{"MiningDuration (ms)",-22}{authorHeader}");
+        foreach (Block block in blockchain.Chain.Skip(startIndex))
         {
-            string author = block.Author.Length > 16
-                ? $"{block.Author[..8]}...{block.Author[^8..]}"
-                : block.Author;
+            string author = includeAuthor ? block.Author : string.Empty;
+            if (author.Length > 16)
+            {
+                author = $"{author[..8]}...{author[^8..]}";
+            }
             Console.WriteLine($"{block.Index,-8}{block.DifficultyAtMining,-22}{block.MiningAttempts,-16}{block.MiningDuration.TotalMilliseconds,-22:F3}{author}");
         }
         Console.WriteLine();
