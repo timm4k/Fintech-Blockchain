@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <BaseOutputPath>$(MSBuildThisFileDirectory)..\toolchains\build\Fintech-Blockchain\bin\</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)..\toolchains\build\Fintech-Blockchain\obj\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>
