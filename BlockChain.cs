@@ -20,6 +20,12 @@ public sealed class BlockChain
         Action<long, TimeSpan>? reportProgress = null,
         int adjustmentInterval = 3,
         TimeSpan? targetBlockTime = null)
+        : this(difficulty, reportProgress, adjustmentInterval, targetBlockTime, true)
+    {
+    }
+
+    private BlockChain(int difficulty, Action<long, TimeSpan>? reportProgress,
+        int adjustmentInterval, TimeSpan? targetBlockTime, bool createGenesis)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(difficulty, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(difficulty, 64);
@@ -36,6 +42,8 @@ public sealed class BlockChain
         Difficulty = difficulty;
         this.reportProgress = reportProgress;
         Chain = blocks.AsReadOnly();
+
+        if (!createGenesis) return;
 
         var genesisBlock = new Block
         {
@@ -72,13 +80,66 @@ public sealed class BlockChain
             DifficultyAtMining = Difficulty
         };
 
-        miningService.MineBlock(newBlock, reportProgress);
-        blocks.Add(newBlock);
+        AppendBlock(newBlock);
+    }
 
-        if (newBlock.Index % AdjustmentInterval == 0)
+    public void AddBlock(IEnumerable<Transaction> transactions, string author)
+    {
+        ArgumentNullException.ThrowIfNull(transactions);
+        ArgumentException.ThrowIfNullOrWhiteSpace(author);
+        if (!IsValid()) throw new InvalidOperationException("Repair the chain before adding a block");
+        Transaction[] snapshot = transactions.ToArray();
+        if (snapshot.Length == 0) throw new ArgumentException("No pending transactions");
+        foreach (Transaction transaction in snapshot) TransactionService.Validate(transaction);
+        var knownIds = blocks.SelectMany(block => block.Transactions).Select(tx => tx.Id).ToHashSet();
+        foreach (Transaction transaction in snapshot)
         {
-            AdjustDifficulty();
+            if (!knownIds.Add(transaction.Id)) throw new ArgumentException("Duplicate transaction ID");
         }
+        var block = new Block
+        {
+            Index = blocks.Count,
+            TimeStamp = DateTime.UtcNow,
+            Data = "Transactions",
+            Author = author,
+            PreviousHash = blocks[^1].Hash,
+            DifficultyAtMining = Difficulty,
+            Transactions = snapshot
+        };
+        AppendBlock(block);
+    }
+
+    private void AppendBlock(Block block)
+    {
+        miningService.MineBlock(block, reportProgress);
+        blocks.Add(block);
+        if (block.Index % AdjustmentInterval == 0) AdjustDifficulty();
+    }
+
+    public static BlockChain Restore(IReadOnlyList<Block> savedBlocks, int difficulty,
+        int adjustmentInterval, TimeSpan targetBlockTime, Action<long, TimeSpan>? reportProgress = null)
+    {
+        if (savedBlocks.Count == 0) throw new ArgumentException("Stored chain has no genesis block");
+        var chain = new BlockChain(difficulty, reportProgress, adjustmentInterval, targetBlockTime, false);
+        foreach (Block block in savedBlocks)
+        {
+            if (block is null || string.IsNullOrWhiteSpace(block.Hash)
+                || string.IsNullOrWhiteSpace(block.PreviousHash)
+                || string.IsNullOrWhiteSpace(block.Author) || block.Data is null
+                || block.TimeStamp.Kind != DateTimeKind.Utc)
+                throw new InvalidDataException("Stored block has missing or invalid fields");
+        }
+        chain.blocks.AddRange(savedBlocks);
+        var ids = new HashSet<Guid>();
+        foreach (Transaction transaction in savedBlocks.SelectMany(block => block.Transactions))
+        {
+            TransactionService.Validate(transaction);
+            if (!ids.Add(transaction.Id)) throw new ArgumentException("Duplicate stored transaction ID");
+        }
+        InvalidBlockResult? invalid = chain.FindFirstInvalidBlock();
+        if (invalid is not null)
+            throw new InvalidDataException($"Stored block {invalid.Index}: {invalid.Reason}");
+        return chain;
     }
 
     private void AdjustDifficulty()
@@ -109,6 +170,41 @@ public sealed class BlockChain
         return blocks
             .Where(block => block.Data.Contains(text, StringComparison.OrdinalIgnoreCase))
             .ToArray();
+    }
+
+    public (Transaction Transaction, int BlockIndex)? FindTransactionById(Guid id)
+    {
+        foreach (Block block in blocks)
+        {
+            Transaction? transaction = block.Transactions.FirstOrDefault(tx => tx.Id == id);
+            if (transaction is not null) return (transaction, block.Index);
+        }
+        return null;
+    }
+
+    public IReadOnlyList<(Transaction Transaction, int BlockIndex)> FindTransactionsByUser(
+        string user, TransactionDirection direction = TransactionDirection.All)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(user);
+        if (!Enum.IsDefined(direction)) throw new ArgumentOutOfRangeException(nameof(direction));
+        user = user.Trim();
+        var results = new List<(Transaction Transaction, int BlockIndex)>();
+        foreach (Block block in blocks)
+        {
+            foreach (Transaction transaction in block.Transactions)
+            {
+                bool isSender = string.Equals(transaction.From, user, StringComparison.OrdinalIgnoreCase);
+                bool isRecipient = string.Equals(transaction.To, user, StringComparison.OrdinalIgnoreCase);
+                bool matches = direction switch
+                {
+                    TransactionDirection.Sent => isSender,
+                    TransactionDirection.Received => isRecipient,
+                    _ => isSender || isRecipient
+                };
+                if (matches) results.Add((transaction, block.Index));
+            }
+        }
+        return results;
     }
 
     public InvalidBlockResult? FindFirstInvalidBlock()

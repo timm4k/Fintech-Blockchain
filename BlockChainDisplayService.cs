@@ -34,7 +34,22 @@ public sealed class BlockChainDisplayService
             Console.WriteLine($"Attempts:     {block.MiningAttempts}");
             Console.WriteLine($"Mining time:  {block.MiningDuration.TotalMilliseconds:F3} ms");
         }
+        if (block.Transactions.Count > 0) DisplayTransactions(block.Transactions);
         Console.WriteLine(new string('-', 78));
+    }
+
+    public void DisplayTransactions(IEnumerable<Transaction> transactions)
+    {
+        bool any = false;
+        foreach (Transaction transaction in transactions)
+        {
+            any = true;
+            Console.WriteLine($"ID:     {transaction.Id}");
+            Console.WriteLine($"From:   {transaction.From} | To: {transaction.To}");
+            Console.WriteLine($"Amount: {transaction.Amount} {transaction.Asset} | UTC: {transaction.TimeStamp:O}");
+            Console.WriteLine();
+        }
+        if (!any) Console.WriteLine("No transactions");
     }
 
     public void DisplayDifficultyAdjustment(BlockChain blockchain)

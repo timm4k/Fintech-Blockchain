@@ -2,6 +2,20 @@ using System.Text;
 using FintechBlockchain;
 
 Console.OutputEncoding = Encoding.UTF8;
+string storagePath = args.Length == 0 ? Path.Combine("data", "ledger.json") : args[0];
+try
+{
+    new BlockchainMenu(new BlockchainStorage(storagePath)).Run();
+}
+catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+    or InvalidDataException or System.Text.Json.JsonException or ArgumentException or InvalidOperationException)
+{
+    Console.Error.WriteLine($"Cannot open blockchain: {exception.Message}");
+    Environment.ExitCode = 1;
+}
+
+/*
+Console.OutputEncoding = Encoding.UTF8;
 
 const int initialDifficulty = 2;
 const int blocksToMine = 8;
@@ -48,6 +62,7 @@ int preservedDifficulties = blockchain.Chain.Zip(originalDifficulties)
 displayService.DisplayRepairResult(repair, blockchain, preservedDifficulties);
 displayService.PrintDifficultyHistory(blockchain, includeAuthor: false, startIndex: attackedBlockIndex);
 displayService.DisplayDifficultyImpact(blockchain.Chain.Skip(attackedBlockIndex));
+*/
 
 /*
 Console.OutputEncoding = Encoding.UTF8;

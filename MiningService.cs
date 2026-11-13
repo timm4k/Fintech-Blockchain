@@ -20,12 +20,15 @@ public sealed class MiningService
         ArgumentOutOfRangeException.ThrowIfLessThan(block.DifficultyAtMining, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(block.DifficultyAtMining, 64);
         string hashPrefix = new('0', block.DifficultyAtMining);
-        MiningResult result = Mine(nonce =>
+        string blockData = hashingService.GetBlockData(block);
+        MiningResult result = Mine(nonce => hashingService.ComputeHash(blockData, nonce),
+            hashPrefix, reportProgress);
+        if (blockData != hashingService.GetBlockData(block))
         {
-            block.Nonce = nonce;
-            return hashingService.ComputeHash(block);
-        }, hashPrefix, reportProgress);
+            throw new InvalidOperationException("Block contents changed during mining");
+        }
 
+        block.Nonce = result.Nonce;
         block.Hash = result.Hash;
         block.MiningAttempts = result.Attempts;
         block.MiningDuration = result.Elapsed;

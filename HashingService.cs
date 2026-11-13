@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 
 namespace FintechBlockchain;
 
@@ -26,7 +27,11 @@ public sealed class HashingService
     public string GetBlockData(Block block)
     {
         ArgumentNullException.ThrowIfNull(block);
-        return $"{block.Index}|{block.TimeStamp:O}|{block.Data}|{block.PreviousHash}|{block.DifficultyAtMining}|{block.Author}";
+        return JsonSerializer.Serialize(new
+        {
+            block.Index, block.TimeStamp, block.Data, block.PreviousHash,
+            block.DifficultyAtMining, block.Author, block.Transactions
+        });
     }
 
     public string ComputeLetterHash(string data, long nonce, string alphabet)
